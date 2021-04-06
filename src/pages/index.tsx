@@ -1,4 +1,4 @@
-import { GetServerSideProps } from "next";
+import { GetStaticProps } from "next";
 
 import Head from "next/head";
 
@@ -17,6 +17,7 @@ interface HomeProps {
 }
 
 export default function Home({ product }: HomeProps) {
+  console.log(product, "product");
   return (
     <>
       <Head>
@@ -31,9 +32,9 @@ export default function Home({ product }: HomeProps) {
           </h1>
           <p>
             Get access to all the publications <br />
-            <span>for {product.amount} month</span>
+            <span> for {product?.amount} month</span>
           </p>
-          <SubscribeButton priceID={product.priceId} />
+          <SubscribeButton priceId={product?.priceId} />
         </section>
         <img src="/images/avatar.svg" alt="Girl coding" />
       </main>
@@ -41,7 +42,7 @@ export default function Home({ product }: HomeProps) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps = async () => {
+export const getStaticProps: GetStaticProps = async () => {
   const price = await stripe.prices.retrieve("price_1IcuTDL9CaUgdj4KkATuDOI2");
 
   const product = {
@@ -56,5 +57,6 @@ export const getServerSideProps: GetServerSideProps = async () => {
     props: {
       product,
     },
+    revalidate: 60 * 60 * 24, // 24h
   };
 };
