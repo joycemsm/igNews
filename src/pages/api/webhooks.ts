@@ -8,7 +8,9 @@ async function buffer(readable: Readable) {
   const chunks = [];
 
   for await (const chunk of readable) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+    chunks.push(
+      typeof chunk === "string" ? Buffer.from(chunk) : chunk
+    );
   }
 
   return Buffer.concat(chunks);
@@ -21,26 +23,22 @@ export const config = {
 };
 
 const relevantEvents = new Set([
-  "customer.subscription.created",
-  "customer.subcription.updated",
+  "checkout.session.completed",
+  "customer.subscription.updated",
   "customer.subscription.deleted",
 ]);
 
-export default async (req: NextApiRequest, res: NextApiResponse) => {
-  if (req.method === "POST") {
-    const buf = await buffer(req);
-    const secret = req.headers["stripe-signature"];
+export default async (request: NextApiRequest, response: NextApiResponse) => {
+  if (request.method === "POST") {
+    const buf = await buffer(request);
+    const secret = request.headers["stripe-signature"];
 
     let event: Stripe.Event;
 
     try {
-      event = stripe.webhooks.constructEvent(
-        buf,
-        secret,
-        process.env.STRIPE_WEBHOOK_SECRET
-      );
+      event = stripe.webhooks.constructEvent(buf, secret,process.env.STRIPE_WEBHOOK_SECRET);
     } catch (err) {
-      return res.status(400).send(`Webhook error: ${err.message}`);
+      return response.status(400).send(`Webhook error: ${err.message}`);
     }
 
     const { type } = event;
@@ -48,7 +46,8 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
     if (relevantEvents.has(type)) {
       try {
         switch (type) {
-          case "customer.subcription.updated":
+      
+          case "customer.subscription.updated":
           case "customer.subscription.deleted":
             const subscription = event.data.object as Stripe.Subscription;
 
@@ -60,8 +59,8 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 
             break;
           case "checkout.session.completed":
-            const checkoutSession = event.data
-              .object as Stripe.Checkout.Session;
+
+            const checkoutSession = event.data.object as Stripe.Checkout.Session;
 
             await saveSubscription(
               checkoutSession.subscription.toString(),
@@ -74,13 +73,13 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
             throw new Error("Unhandled event.");
         }
       } catch (err) {
-        return res.json({ error: "Webhook handler failed." });
+        return response.json({ error: "Webhook handler failed." });
       }
     }
 
-    res.json({ received: true });
+    response.json({ received: true });
   } else {
-    res.setHeader("Allow", "POST");
-    res.status(405).end("Method not allowed");
+    response.setHeader("Allow", "POST");
+    response.status(405).end("Method not allowed");
   }
 };
